@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel target="17">
+      <module name="ise-lab-code-jason" target="21" />
+      <module name="ise-lab-code-jason.helloworld" target="21" />
+      <module name="ise-lab-code-jason.helloworld.main" target="21" />
+      <module name="ise-lab-code-jason.helloworld.test" target="21" />
+      <module name="ise-lab-code-jason.main" target="21" />
+      <module name="ise-lab-code-jason.pacman" target="21" />
+      <module name="ise-lab-code-jason.pacman.main" target="21" />
+      <module name="ise-lab-code-jason.pacman.test" target="21" />
+      <module name="ise-lab-code-jason.test" target="21" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

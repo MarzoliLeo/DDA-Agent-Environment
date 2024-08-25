@@ -1,0 +1,13 @@
+MAS pacman {
+
+	infrastructure: Centralised // no distribution, the whole MAS runs in the same host
+
+	environment: env.RaceEnvironment()
+
+	agents: // which agents partecipates the MAS?
+		pacman pacman_agent;
+		enemy enemy_agent;
+
+	aslSourcePath: // where to find agents' source code
+		"src/main/asl";
+}
