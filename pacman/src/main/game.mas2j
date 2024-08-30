@@ -5,8 +5,7 @@ MAS pacman {
 	environment: env.RaceEnvironment()
 
 	agents: // which agents partecipates the MAS?
-		pacman pacman_agent;
-		enemy enemy_agent;
+		controller controller_agent;
 
 	aslSourcePath: // where to find agents' source code
 		"src/main/asl";

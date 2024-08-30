@@ -29,11 +29,16 @@ public class RaceEnvironment extends Environment {
 
     @Override
     public void init(final String[] args) {
-        // Inizializzazione se necessaria
+        //updateCheckpointBelief();
     }
 
     @Override
     public boolean executeAction(String agName, Structure action) {
+        if (action.getFunctor().equals("update_checkpoint_belief")) {
+            updateCheckpointBelief();
+            return true;
+        }
+
         try {
             // Converti l'azione in JSON
             String actionJson = "{\"action\": \"" + action.toString() + "\"}";
@@ -97,6 +102,18 @@ public class RaceEnvironment extends Environment {
         }
 
         return -1;  // Restituisci un valore di errore se qualcosa va storto
+    }
+
+    public void updateCheckpointBelief() {
+        try {
+            int totalCheckpoints = getCheckpointCount();
+            if (totalCheckpoints >= 0) {
+                // Aggiungi il conteggio dei checkpoint come belief all'agente
+                addPercept(Literal.parseLiteral("checkpoints(" + totalCheckpoints + ")"));
+            }
+        } catch (Exception e) {
+            logger.severe("Error updating checkpoint belief: " + e.getMessage());
+        }
     }
 
     // Aggiungi metodi per fornire percezioni all'agente, se necessario
