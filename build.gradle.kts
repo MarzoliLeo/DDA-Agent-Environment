@@ -35,6 +35,7 @@ subprojects {
         testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.0")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.0")
         implementation ("org.python:jython-slim:2.7.4")
+        implementation ("org.json:json:20210307")
     }
 
     val mas2jFiles = file("${projectDir}/src/main").listFiles()?.filter { it.extension == "mas2j" }
