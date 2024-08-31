@@ -1,2 +1,2 @@
-# Intelliget-PacMan
-Project developed for Intelligent System Exam.
+# Intelliget-Untiy-Agent
+Thesis project.
