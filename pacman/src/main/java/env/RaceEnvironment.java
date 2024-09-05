@@ -2,7 +2,6 @@ package env;
 
 import jason.asSyntax.Literal;
 import jason.asSyntax.Structure;
-import jason.asSyntax.Term;
 import jason.environment.Environment;
 
 import java.io.BufferedReader;
@@ -13,6 +12,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 import org.json.JSONObject;
+import org.json.JSONException;
+import java.util.Iterator;
 
 /**
  * Any Jason environment "entry point" should extend
@@ -20,16 +21,14 @@ import org.json.JSONObject;
  * updatePercepts() and executeAction().
  */
 
-//TODO se esegui "./gradlew runPacmanMas" con il server Flask attivo, invierà la richiesta correttamente.
-// ATTENZIONE!: E' un agente e sta mandando richieste HTTP... Gestire molto attentamente quante richieste manda...
-// (per ora ne manda poche.. ma bisognerà rallentarle se non mandarne addirittura solo una).
 public class RaceEnvironment extends Environment {
 
     static Logger logger = Logger.getLogger(RaceEnvironment.class.getName());
 
     @Override
     public void init(final String[] args) {
-        //updateCheckpointBelief();
+        // Aggiornamento iniziale dei checkpoint come belief
+        updateCheckpointBelief();
     }
 
     @Override
@@ -73,9 +72,11 @@ public class RaceEnvironment extends Environment {
         return true;  // Assumi che l'azione sia stata eseguita con successo
     }
 
-    public int getCheckpointCount() {
+    // Metodo modificato per ottenere l'intero dizionario di checkpoint
+    public JSONObject getCheckpointData() {
         try {
-            URL url = new URL("http://localhost:5000/api/agent/response");
+            // URL del nuovo endpoint Flask che restituisce il dizionario
+            URL url = new URL("http://localhost:5000/api/agent/checkpoints");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
 
@@ -89,28 +90,37 @@ public class RaceEnvironment extends Environment {
                 }
                 in.close();
 
-                // Parsifica il JSON ricevuto
+                // Parsifica il JSON ricevuto come un oggetto JSONObject
                 JSONObject jsonResponse = new JSONObject(content.toString());
-                int totalCheckpoints = jsonResponse.getInt("total_checkpoints");
-                logger.info("Total checkpoints received: " + totalCheckpoints);
-                return totalCheckpoints;
+                logger.info("Checkpoint data received: " + jsonResponse.toString());
+                return jsonResponse;  // Restituisci l'intero JSONObject
             } else {
                 logger.warning("GET request failed.");
             }
         } catch (Exception e) {
-            logger.severe("Error retrieving checkpoints from Flask server: " + e.getMessage());
+            logger.severe("Error retrieving checkpoint data from Flask server: " + e.getMessage());
         }
 
-        return -1;  // Restituisci un valore di errore se qualcosa va storto
+        return null;  // Restituisci null in caso di errore
     }
 
+    // Metodo per aggiornare i belief con i dati dei checkpoint
     public void updateCheckpointBelief() {
         try {
-            int totalCheckpoints = getCheckpointCount();
-            if (totalCheckpoints >= 0) {
-                // Aggiungi il conteggio dei checkpoint come belief all'agente
-                addPercept(Literal.parseLiteral("checkpoints(" + totalCheckpoints + ")"));
+            JSONObject checkpointData = getCheckpointData();  // Ottieni i dati dei checkpoint
+            if (checkpointData != null) {
+                // Itera attraverso il dizionario dei checkpoint
+                Iterator<String> keys = checkpointData.keys();
+                while (keys.hasNext()) {
+                    String playerId = keys.next();
+                    int checkpoints = checkpointData.getInt(playerId);
+
+                    // Aggiungi un belief per ogni giocatore e il loro conteggio dei checkpoint
+                    addPercept(Literal.parseLiteral("checkpoints('" + playerId + "', " + checkpoints + ")"));
+                }
             }
+        } catch (JSONException e) {
+            logger.severe("Error parsing checkpoint JSON: " + e.getMessage());
         } catch (Exception e) {
             logger.severe("Error updating checkpoint belief: " + e.getMessage());
         }
@@ -118,5 +128,3 @@ public class RaceEnvironment extends Environment {
 
     // Aggiungi metodi per fornire percezioni all'agente, se necessario
 }
-
-

@@ -3,9 +3,10 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Inizializza il contatore dei checkpoint
-checkpoint_counter = 0
+# Inizializza un dizionario per tenere traccia dei checkpoint per ogni giocatore
+checkpoint_counter = {}
 
+# TODO Questa route era un Test e non rispetta i canoni RESTfull che le altre route invece hanno.
 @app.route('/api/agent/action', methods=['POST'])
 def execute_action():
     data = request.json
@@ -13,24 +14,43 @@ def execute_action():
     action = data.get('action', 'No action provided')
     return jsonify({"result": "Action {} received".format(action)}), 200
 
+# Endpoint per aggiornare o aggiungere i checkpoint di un giocatore specifico
 @app.route('/api/agent/checkpoint', methods=['POST'])
 def update_checkpoint():
-    global checkpoint_counter
     data = request.json
+    player_id = data.get('player_id')
     checkpoints = data.get('checkpoints', 0)
 
-    # Aggiorna il contatore dei checkpoint
-    checkpoint_counter += checkpoints
-    #print(f"Checkpoint updated: {checkpoints}. Total now: {checkpoint_counter}")
-    return jsonify({"message": "Checkpoint count updated", "total_checkpoints": checkpoint_counter}), 200
+    if player_id not in checkpoint_counter:
+        checkpoint_counter[player_id] = 0
 
-@app.route('/api/agent/response', methods=['GET'])
-def get_checkpoint_count():
-    global checkpoint_counter
-    return jsonify({"total_checkpoints": checkpoint_counter}), 200
+    # Aggiorna il contatore dei checkpoint per il giocatore specifico
+    checkpoint_counter[player_id] += checkpoints
+    return jsonify({
+        "message": f"Checkpoint count updated for player {player_id}",
+        "total_checkpoints": checkpoint_counter[player_id]
+    }), 200
+
+# Endpoint per ottenere i checkpoint di un giocatore specifico (GET /checkpoint/{player_id})
+@app.route('/api/agent/checkpoint/<string:player_id>', methods=['GET'])
+def get_checkpoint_count(player_id):
+    total_checkpoints = checkpoint_counter.get(player_id, 0)
+    return jsonify({
+        "player_id": player_id,
+        "total_checkpoints": total_checkpoints
+    }), 200
+
+# Endpoint per ottenere tutti i checkpoint di tutti i giocatori (GET /checkpoints)
+@app.route('/api/agent/checkpoints', methods=['GET'])
+def get_all_checkpoints():
+    return jsonify({
+        "checkpoint_counter": checkpoint_counter
+    }), 200
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 #To test: run with Python
