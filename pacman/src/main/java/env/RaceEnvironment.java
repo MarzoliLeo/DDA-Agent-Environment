@@ -28,16 +28,16 @@ public class RaceEnvironment extends Environment {
     @Override
     public void init(final String[] args) {
         // Aggiornamento iniziale dei checkpoint come belief
-        updateCheckpointBelief();
+        updatePlayerDataBelief();
     }
 
     @Override
     public boolean executeAction(String agName, Structure action) {
         if (action.getFunctor().equals("update_checkpoint_belief")) {
-            updateCheckpointBelief(); //creo un loop di acquisizione dati.
+            updatePlayerDataBelief(); //creo un loop di acquisizione dati.
             return true;
         }
-
+        // Questo era solo un TEST INIZIALE.
         try {
             // Converti l'azione in JSON
             String actionJson = "{\"action\": \"" + action.toString() + "\"}";
@@ -73,7 +73,7 @@ public class RaceEnvironment extends Environment {
     }
 
     // Metodo modificato per ottenere l'intero dizionario di checkpoint
-    public JSONObject getCheckpointData() {
+    public JSONObject getPlayersData() {
         try {
             // URL del nuovo endpoint Flask che restituisce il dizionario
             URL url = new URL("http://localhost:5000/api/agent/data");
@@ -105,26 +105,49 @@ public class RaceEnvironment extends Environment {
     }
 
     // Metodo per aggiornare i belief con i dati dei checkpoint
-    public void updateCheckpointBelief() {
+    public void updatePlayerDataBelief() {
         try {
-            JSONObject checkpointData = getCheckpointData();  //[GET /data] dal server Flask.
-            if (checkpointData != null) {
-                // Itera attraverso il dizionario dei checkpoint
-                Iterator<String> keys = checkpointData.keys();
+            JSONObject playerData = getPlayersData();  // [GET /data] dal server Flask.
+            if (playerData != null) {
+                // Itera attraverso il dizionario dei dati dei giocatori
+                Iterator<String> keys = playerData.keys();
                 while (keys.hasNext()) {
                     String playerId = keys.next();
-                    int checkpoints = checkpointData.getInt(playerId);
+                    JSONObject playerInfo = playerData.getJSONObject(playerId);
 
-                    // Aggiungi un belief per ogni giocatore e il loro conteggio dei checkpoint
-                    addPercept(Literal.parseLiteral("checkpoints('" + playerId + "', " + checkpoints + ")"));
+                    // Estrai tutti i parametri del giocatore dal JSON
+                    int checkpoints = playerInfo.getInt("checkpoints");
+                    float currentSpeed = (float) playerInfo.getDouble("current_speed");
+                    float topSpeed = (float) playerInfo.getDouble("top_speed");
+                    float acceleration = (float) playerInfo.getDouble("acceleration");
+                    JSONObject position = playerInfo.getJSONObject("position");
+                    float posX = (float) position.getDouble("x");
+                    float posY = (float) position.getDouble("y");
+                    float posZ = (float) position.getDouble("z");
+                    float distanceToFront = (float) playerInfo.getDouble("distance_to_front");
+                    float distanceToBack = (float) playerInfo.getDouble("distance_to_back");
+                    int rank = playerInfo.getInt("rank");
+                    float distanceToFinish = (float) playerInfo.getDouble("distance_to_finish");
+
+                    // Aggiungi un belief per ogni parametro del giocatore
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'checkpoints', " + checkpoints + ")"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'current_speed', " + currentSpeed + ")"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'top_speed', " + topSpeed + ")"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'acceleration', " + acceleration + ")"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'position', [" + posX + ", " + posY + ", " + posZ + "])"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'distance_to_front', " + distanceToFront + ")"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'distance_to_back', " + distanceToBack + ")"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'rank', " + rank + ")"));
+                    addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'distance_to_finish', " + distanceToFinish + ")"));
                 }
             }
         } catch (JSONException e) {
-            logger.severe("Error parsing checkpoint JSON: " + e.getMessage());
+            logger.severe("Error parsing player data JSON: " + e.getMessage());
         } catch (Exception e) {
-            logger.severe("Error updating checkpoint belief: " + e.getMessage());
+            logger.severe("Error updating player data belief: " + e.getMessage());
         }
     }
+
 
     // Aggiungi metodi per fornire percezioni all'agente, se necessario
 }
