@@ -34,7 +34,7 @@ public class RaceEnvironment extends Environment {
     @Override
     public boolean executeAction(String agName, Structure action) {
         if (action.getFunctor().equals("update_checkpoint_belief")) {
-            updateCheckpointBelief();
+            updateCheckpointBelief(); //creo un loop di acquisizione dati.
             return true;
         }
 
@@ -76,7 +76,7 @@ public class RaceEnvironment extends Environment {
     public JSONObject getCheckpointData() {
         try {
             // URL del nuovo endpoint Flask che restituisce il dizionario
-            URL url = new URL("http://localhost:5000/api/agent/checkpoints");
+            URL url = new URL("http://localhost:5000/api/agent/data");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
 
@@ -107,7 +107,7 @@ public class RaceEnvironment extends Environment {
     // Metodo per aggiornare i belief con i dati dei checkpoint
     public void updateCheckpointBelief() {
         try {
-            JSONObject checkpointData = getCheckpointData();  // Ottieni i dati dei checkpoint
+            JSONObject checkpointData = getCheckpointData();  //[GET /data] dal server Flask.
             if (checkpointData != null) {
                 // Itera attraverso il dizionario dei checkpoint
                 Iterator<String> keys = checkpointData.keys();

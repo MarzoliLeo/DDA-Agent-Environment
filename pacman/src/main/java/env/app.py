@@ -3,8 +3,8 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Inizializza un dizionario per tenere traccia dei checkpoint per ogni giocatore
-checkpoint_counter = {}
+# Dizionario per contenere i dati di tutti i giocatori
+player_data = {}
 
 # TODO Questa route era un Test e non rispetta i canoni RESTfull che le altre route invece hanno.
 @app.route('/api/agent/action', methods=['POST'])
@@ -14,39 +14,51 @@ def execute_action():
     action = data.get('action', 'No action provided')
     return jsonify({"result": "Action {} received".format(action)}), 200
 
-# Endpoint per aggiornare o aggiungere i checkpoint di un giocatore specifico
-@app.route('/api/agent/checkpoint', methods=['POST'])
-def update_checkpoint():
+
+@app.route('/api/agent/data', methods=['POST'])
+def update_player_data():
     data = request.json
     player_id = data.get('player_id')
-    checkpoints = data.get('checkpoints', 0)
 
-    if player_id not in checkpoint_counter:
-        checkpoint_counter[player_id] = 0
+    if player_id:
+        # Aggiorna o aggiungi i dati del giocatore
+        player_data[player_id] = {
+            "checkpoints": data.get('checkpoints'),
+            "current_speed": data.get('current_speed'),
+            "top_speed": data.get('top_speed'),
+            "acceleration": data.get('acceleration'),
+            "position": data.get('position'),
+            "distance_to_front": data.get('distance_to_front'),
+            "distance_to_back": data.get('distance_to_back'),
+            "rank": data.get('rank'),
+            "distance_to_finish": data.get('distance_to_finish')
+        }
 
-    # Aggiorna il contatore dei checkpoint per il giocatore specifico
-    checkpoint_counter[player_id] += checkpoints
+        return jsonify({
+            "message": f"Data updated for player {player_id}",
+            "player_data": player_data[player_id]
+        }), 200
+    else:
+        return jsonify({"error": "Player ID not provided"}), 400
+
+# Endpoint per ottenere i dati di un giocatore specifico (GET /data/{player_id})
+@app.route('/api/agent/data/<string:player_id>', methods=['GET'])
+def get_player_data(player_id):
+    data = player_data.get(player_id)
+    if data:
+        return jsonify({
+            "player_id": player_id,
+            "player_data": data
+        }), 200
+    else:
+        return jsonify({"error": f"No data found for player {player_id}"}), 404
+
+# Endpoint per ottenere i dati di tutti i giocatori (GET /data)
+@app.route('/api/agent/data', methods=['GET'])
+def get_all_player_data():
     return jsonify({
-        "message": f"Checkpoint count updated for player {player_id}",
-        "total_checkpoints": checkpoint_counter[player_id]
+        "all_player_data": player_data
     }), 200
-
-# Endpoint per ottenere i checkpoint di un giocatore specifico (GET /checkpoint/{player_id})
-@app.route('/api/agent/checkpoint/<string:player_id>', methods=['GET'])
-def get_checkpoint_count(player_id):
-    total_checkpoints = checkpoint_counter.get(player_id, 0)
-    return jsonify({
-        "player_id": player_id,
-        "total_checkpoints": total_checkpoints
-    }), 200
-
-# Endpoint per ottenere tutti i checkpoint di tutti i giocatori (GET /checkpoints)
-@app.route('/api/agent/checkpoints', methods=['GET'])
-def get_all_checkpoints():
-    return jsonify({
-        "checkpoint_counter": checkpoint_counter
-    }), 200
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
