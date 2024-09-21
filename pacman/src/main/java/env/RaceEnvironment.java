@@ -1,16 +1,21 @@
 package env;
 
+import jason.asSyntax.ListTerm;
 import jason.asSyntax.Literal;
 import jason.asSyntax.Structure;
+import jason.asSyntax.Term;
 import jason.environment.Environment;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
 import java.util.Iterator;
@@ -33,46 +38,53 @@ public class RaceEnvironment extends Environment {
 
     @Override
     public boolean executeAction(String agName, Structure action) {
-        if (action.getFunctor().equals("update_checkpoint_belief")) {
-            updatePlayerDataBelief(); //creo un loop di acquisizione dati.
-            return true;
-        }
-        // Questo era solo un TEST INIZIALE.
-        try {
-            // Converti l'azione in JSON
-            String actionJson = "{\"action\": \"" + action.toString() + "\"}";
-
-            // URL del server Flask
-            URL url = new URL("http://localhost:5000/api/agent/action");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-
-            // Invia la richiesta
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(actionJson.getBytes());
-                os.flush();
+        try
+        {
+            if (action.getFunctor().equals("update_checkpoint_belief")) {
+                updatePlayerDataBelief(); //creo un loop di acquisizione dati.
+                return true;
             }
+            if (action.getFunctor().equals("send_to_ml_model")) {
+                // Estrai l'argomento della lista di beliefs
+                ListTerm beliefsList = (ListTerm) action.getTerm(0);
 
-            // Leggi la risposta
-            int responseCode = conn.getResponseCode();
-            logger.info("POST Response Code :: " + responseCode);
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                // Risposta corretta
-                logger.info("Action sent successfully.");
-            } else {
-                logger.warning("POST request failed.");
+                // Crea un array per contenere i dati strutturati
+                List<String[]> structuredData = new ArrayList<>();
+
+                // Verifica che la lista di beliefs non sia vuota
+                if (beliefsList.size() == 0) {
+                    logger.warning("No beliefs to send to the ML model.");
+                    return true;
+                }
+
+                // Itera sulla lista di beliefs
+                for (Term term : beliefsList) {
+                    if (term instanceof ListTerm) {
+                        ListTerm tuple = (ListTerm) term;
+                        String playerId = tuple.get(0).toString();
+                        String parameter = tuple.get(1).toString();
+                        String value = tuple.get(2).toString();
+
+                        // Aggiungi i dati come un array strutturato
+                        structuredData.add(new String[]{playerId, parameter, value});
+                    }
+                }
+
+                logger.info("Structured data sent to ML model: " + structuredData.toString());
+
+                // Ora invia queste informazioni al modello di ML, eventualmente tramite un metodo
+                sendToMLModel(structuredData);
+                logger.info( "HO APPENA INVIATO I DATI AL MODELLO");
+                return true;
             }
-
         } catch (Exception e) {
-            logger.severe("Error sending action to Flask server: " + e.getMessage());
+            logger.severe("Error executing Action: " + e.getMessage());
         }
 
         return true;  // Assumi che l'azione sia stata eseguita con successo
     }
 
-    // Metodo modificato per ottenere l'intero dizionario di checkpoint
+    // Metodo modificato per ottenere l'intero dictionary con i players_data.
     public JSONObject getPlayersData() {
         try {
             // URL del nuovo endpoint Flask che restituisce il dizionario
@@ -92,13 +104,13 @@ public class RaceEnvironment extends Environment {
 
                 // Parsifica il JSON ricevuto come un oggetto JSONObject
                 JSONObject jsonResponse = new JSONObject(content.toString());
-                logger.info("Checkpoint data received: " + jsonResponse.toString());
+                logger.info("Players data received: " + jsonResponse.toString());
                 return jsonResponse;  // Restituisci l'intero JSONObject
             } else {
                 logger.warning("GET request failed.");
             }
         } catch (Exception e) {
-            logger.severe("Error retrieving checkpoint data from Flask server: " + e.getMessage());
+            logger.severe("Error retrieving data from Flask server: " + e.getMessage());
         }
 
         return null;  // Restituisci null in caso di errore
@@ -109,11 +121,16 @@ public class RaceEnvironment extends Environment {
         try {
             JSONObject playerData = getPlayersData();  // [GET /data] dal server Flask.
             if (playerData != null) {
+                // Accedi all'oggetto all_player_data
+                JSONObject allPlayerData = playerData.getJSONObject("all_player_data");
+
                 // Itera attraverso il dizionario dei dati dei giocatori
-                Iterator<String> keys = playerData.keys();
+                Iterator<String> keys = allPlayerData.keys();
                 while (keys.hasNext()) {
-                    String playerId = keys.next();
-                    JSONObject playerInfo = playerData.getJSONObject(playerId);
+                    String playerId = keys.next();  // Ottieni il playerId corrente
+                    JSONObject playerInfo = allPlayerData.getJSONObject(playerId);  // Ottieni le informazioni del giocatore
+
+                    //logger.info("Player Data appare nel seguente modo: " + playerInfo.toString());
 
                     // Estrai tutti i parametri del giocatore dal JSON
                     int checkpoints = playerInfo.getInt("checkpoints");
@@ -124,8 +141,19 @@ public class RaceEnvironment extends Environment {
                     float posX = (float) position.getDouble("x");
                     float posY = (float) position.getDouble("y");
                     float posZ = (float) position.getDouble("z");
+
+
+                    // Gestione di valori estremamente alti per distanza
                     float distanceToFront = (float) playerInfo.getDouble("distance_to_front");
+                    if (distanceToFront > 1e30) {  // Soglia per considerare il valore come "infinito"
+                        distanceToFront = Float.POSITIVE_INFINITY;  // Oppure un valore personalizzato come -1 per rappresentare "nessun giocatore davanti"
+                    }
+
                     float distanceToBack = (float) playerInfo.getDouble("distance_to_back");
+                    if (distanceToBack > 1e30) {  // Soglia per considerare il valore come "infinito"
+                        distanceToBack = Float.POSITIVE_INFINITY;  // Oppure un valore personalizzato come -1 per rappresentare "nessun giocatore dietro"
+                    }
+
                     int rank = playerInfo.getInt("rank");
                     float distanceToFinish = (float) playerInfo.getDouble("distance_to_finish");
 
@@ -139,6 +167,8 @@ public class RaceEnvironment extends Environment {
                     addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'distance_to_back', " + distanceToBack + ")"));
                     addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'rank', " + rank + ")"));
                     addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'distance_to_finish', " + distanceToFinish + ")"));
+
+                    logger.info("HO AGGIUNTO LE PERCEPTIONS!");
                 }
             }
         } catch (JSONException e) {
@@ -149,5 +179,22 @@ public class RaceEnvironment extends Environment {
     }
 
 
-    // Aggiungi metodi per fornire percezioni all'agente, se necessario
+
+    // Aggiungi questo metodo nel tuo RaceEnvironment per inviare i dati al modello di machine learning
+    public void sendToMLModel(List<String[]> structuredData) {
+
+        // Converti i dati strutturati in JSON
+        JSONArray jsonArray = new JSONArray();
+        for (String[] data : structuredData) {
+            JSONObject jsonObj = new JSONObject();
+            jsonObj.put("player_id", data[0]);
+            jsonObj.put("parameter", data[1]);
+            jsonObj.put("value", data[2]);
+            jsonArray.put(jsonObj);
+        }
+
+        logger.info("STO INVIANDO AL MODELLO QUESTO PlayerData: " +  jsonArray);
+    }
+
+
 }

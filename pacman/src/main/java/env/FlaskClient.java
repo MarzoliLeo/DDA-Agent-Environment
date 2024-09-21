@@ -5,6 +5,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
+//TODO questa classe serviva inizialmente come Test di app.py, ormai non serve più.
 public class FlaskClient {
 
     public static void main(String[] args) throws Exception {
