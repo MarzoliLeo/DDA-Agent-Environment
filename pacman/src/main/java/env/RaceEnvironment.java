@@ -70,8 +70,6 @@ public class RaceEnvironment extends Environment {
                     }
                 }
 
-                logger.info("Structured data sent to ML model: " + structuredData.toString());
-
                 // Ora invia queste informazioni al modello di ML, eventualmente tramite un metodo
                 sendToMLModel(structuredData);
                 logger.info( "HO APPENA INVIATO I DATI AL MODELLO");
@@ -178,11 +176,7 @@ public class RaceEnvironment extends Environment {
         }
     }
 
-
-
-    // Aggiungi questo metodo nel tuo RaceEnvironment per inviare i dati al modello di machine learning
     public void sendToMLModel(List<String[]> structuredData) {
-
         // Converti i dati strutturati in JSON
         JSONArray jsonArray = new JSONArray();
         for (String[] data : structuredData) {
@@ -193,8 +187,33 @@ public class RaceEnvironment extends Environment {
             jsonArray.put(jsonObj);
         }
 
-        logger.info("STO INVIANDO AL MODELLO QUESTO PlayerData: " +  jsonArray);
-    }
+        // Invio dei dati tramite POST a Flask del modello.
+        try {
+            URL url = new URL("http://localhost:5001/submit_data");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json; utf-8");
+            conn.setDoOutput(true);
 
+            // Invia il JSON al server
+            try(OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonArray.toString().getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            // Legge la risposta dal server
+            try(BufferedReader br = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Response from ML model: " + response.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 }
