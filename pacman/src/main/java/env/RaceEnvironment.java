@@ -187,9 +187,12 @@ public class RaceEnvironment extends Environment {
             jsonArray.put(jsonObj);
         }
 
+        //Debug log
+        logger.info("QUESTO E' CIò che sto inviado: "+ jsonArray);
+
         // Invio dei dati tramite POST a Flask del modello.
         try {
-            URL url = new URL("http://localhost:5001/submit_data");
+            URL url = new URL("http://localhost:5001/send_data");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
