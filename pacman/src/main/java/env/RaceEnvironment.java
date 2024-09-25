@@ -44,7 +44,7 @@ public class RaceEnvironment extends Environment {
                 updatePlayerDataBelief(); //creo un loop di acquisizione dati.
                 return true;
             }
-            if (action.getFunctor().equals("send_to_ml_model")) {
+            if (action.getFunctor().equals("send_data_to_ml_model")) {
                 // Estrai l'argomento della lista di beliefs
                 ListTerm beliefsList = (ListTerm) action.getTerm(0);
 
@@ -71,8 +71,18 @@ public class RaceEnvironment extends Environment {
                 }
 
                 // Ora invia queste informazioni al modello di ML, eventualmente tramite un metodo
-                sendToMLModel(structuredData);
+                sendDataToMLModel(structuredData);
                 logger.info( "HO APPENA INVIATO I DATI AL MODELLO");
+                return true;
+            }
+
+            if (action.getFunctor().equals("train_the_model")) {
+                trainTheModel();
+                return true;
+            }
+
+            if (action.getFunctor().equals("take_prediction_from_model")) {
+                takePredictionFromModel();
                 return true;
             }
         } catch (Exception e) {
@@ -176,7 +186,7 @@ public class RaceEnvironment extends Environment {
         }
     }
 
-    public void sendToMLModel(List<String[]> structuredData) {
+    public void sendDataToMLModel(List<String[]> structuredData) {
         // Converti i dati strutturati in JSON
         JSONArray jsonArray = new JSONArray();
         for (String[] data : structuredData) {
@@ -216,6 +226,65 @@ public class RaceEnvironment extends Environment {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    // Metodo per inviare una richiesta POST e allenare il modello ML
+    public void trainTheModel() {
+        try {
+            URL url = new URL("http://localhost:5001/train_model");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json; utf-8");
+            conn.setDoOutput(true);
+
+            // Invia il comando POST (corpo vuoto poiché non ci sono parametri da inviare)
+            try(OutputStream os = conn.getOutputStream()) {
+                os.write(new byte[0]);
+            }
+
+            // Legge la risposta dal server
+            try(BufferedReader br = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                logger.info("Response from ML model (training): " + response.toString());
+            }
+
+        } catch (Exception e) {
+            logger.severe("Error training the ML model: " + e.getMessage());
+        }
+    }
+
+    // Metodo per ottenere una predizione tramite GET
+    public void takePredictionFromModel() {
+        try {
+            URL url = new URL("http://localhost:5001/get_prediction");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                String inputLine;
+                StringBuilder content = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                in.close();
+
+                // Parsifica il JSON ricevuto
+                JSONObject jsonResponse = new JSONObject(content.toString());
+                logger.info("Prediction received: " + jsonResponse.toString());
+                // Qui potresti voler aggiornare i beliefs dell'agente con la predizione
+            } else {
+                logger.warning("GET prediction request failed.");
+            }
+        } catch (Exception e) {
+            logger.severe("Error retrieving prediction from ML model: " + e.getMessage());
         }
     }
 
