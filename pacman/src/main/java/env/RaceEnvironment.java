@@ -262,7 +262,7 @@ public class RaceEnvironment extends Environment {
     // Metodo per ottenere una predizione tramite GET
     public void takePredictionFromModel() {
         try {
-            URL url = new URL("http://localhost:5001/get_prediction");
+            URL url = new URL("http://localhost:5001/prediction");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
 
