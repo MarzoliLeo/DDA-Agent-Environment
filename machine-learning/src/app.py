@@ -12,9 +12,14 @@ app = Flask(__name__)
 data_storage = []  # List of all received data records
 model = None  # Placeholder for the ML model
 lock = threading.Lock()  # Lock to handle thread-safe operations
-# Aggiungi questa lista di parametri all'inizio del tuo codice
-all_parameters = ['player_id', 'current_speed', 'distance_to_finish', 'checkpoints',
-                  'acceleration', 'position_x', 'position_y', 'position_z', 'rank']
+
+all_parameters_to_evaluate_for_classification = ['player_id', 'current_speed', 'distance_to_finish', 'checkpoints',
+                                                 'acceleration', 'position_x', 'position_y', 'position_z', 'rank']
+all_parameters_sent_via_Json = [
+    'checkpoints', 'current_speed', 'top_speed',
+    'acceleration','position', 'distance_to_front',
+    'distance_to_back', 'rank', 'distance_to_finish'
+]
 
 
 @app.route('/send_data', methods=['POST'])
@@ -38,37 +43,56 @@ def receive_data():
     with lock:
         data_storage.extend(incoming_data)
 
+    #print("Data Storage ha questo contenuto: ", data_storage)
     return jsonify({"status": "data received"}), 200
 
 
 def preprocess_data():
     global data_storage
-    processed_data = []
+    processed_data = {}
 
     for record in data_storage:
-        # Esegui il parsing del valore
         player_id = record['player_id']
         parameter = record['parameter']
-
-        # Assicurati che il valore sia numerico
         value = record['value']
 
-        # Gestisci i valori 'position' (che è una lista) e altri valori
+        # Se il player_id non è già nel dizionario, aggiungilo con valori None
+        if player_id not in processed_data:
+            processed_data[player_id] = [None] * len(all_parameters_sent_via_Json)
+
+        # Gestione della posizione come oggetto separato
         if parameter == 'position':
-            # Assicurati di gestire il caso della lista
-            value = [float(v) for v in value]  # Converte i valori della lista in float
+            try:
+                value_x = float(value[0])
+                value_y = float(value[1])
+                value_z = float(value[2])
+
+                # Aggiungi le coordinate x, y, z nei rispettivi indici
+                processed_data[player_id].extend([value_x, value_y, value_z])
+
+            except (ValueError, IndexError):
+                # Gestione dell'errore se la posizione non è valida
+                print(f"Errore nella conversione della posizione per player_id: {player_id}.")
+                continue  # Salta alla prossima iterazione del loop
         else:
             try:
-                value = float(value)  # Converti il valore in float
+                value = float(value)  # Converti altri valori in float
             except ValueError:
-                # Se non è un numero, gestiscilo come preferisci
-                continue  # Ignora o gestisci diversamente
+                continue  # Ignora se il valore non è numerico
 
-        # Aggiungi i dati elaborati a processed_data solo per parametri numerici
-        if parameter in all_parameters:
-            processed_data.append(value)
+            # Inserisci il valore del parametro nel posto giusto
+            if parameter in all_parameters_sent_via_Json:
+                index = all_parameters_sent_via_Json.index(parameter)
+                processed_data[player_id][index] = value
 
-    return np.array(processed_data)  # Restituisci un array NumPy con solo i valori numerici
+    # Rimuovi eventuali None dall'array finale, tranne se appartengono a parametri significativi
+    for player, params in processed_data.items():
+        processed_data[player] = [value for value in params if value is not None]
+
+    # Converti il dizionario in una lista di liste (ogni lista rappresenta un giocatore)
+    return np.array(list(processed_data.values()))  # Restituisce un array bidimensionale
+
+
 
 
 def classify_balance(data):
@@ -84,15 +108,17 @@ def classify_balance(data):
     position_diff_threshold = 200  # Max position distance (Euclidean)
     rank_diff_threshold = 2  # Max difference in rank
 
+    print("DATA IN CLASSIFY ", data)
+
     # Extract data for each parameter
-    speeds = data[:, all_parameters.index('current_speed')]
-    distances_to_finish = data[:, all_parameters.index('distance_to_finish')]
-    checkpoints = data[:, all_parameters.index('checkpoints')]
-    accelerations = data[:, all_parameters.index('acceleration')]
-    positions_x = data[:, all_parameters.index('position_x')]
-    positions_y = data[:, all_parameters.index('position_y')]
-    positions_z = data[:, all_parameters.index('position_z')]
-    ranks = data[:, all_parameters.index('rank')]
+    speeds = data[:, all_parameters_to_evaluate_for_classification.index('current_speed')]
+    distances_to_finish = data[:, all_parameters_to_evaluate_for_classification.index('distance_to_finish')]
+    checkpoints = data[:, all_parameters_to_evaluate_for_classification.index('checkpoints')]
+    accelerations = data[:, all_parameters_to_evaluate_for_classification.index('acceleration')]
+    positions_x = data[:, all_parameters_to_evaluate_for_classification.index('position_x')]
+    positions_y = data[:, all_parameters_to_evaluate_for_classification.index('position_y')]
+    positions_z = data[:, all_parameters_to_evaluate_for_classification.index('position_z')]
+    ranks = data[:, all_parameters_to_evaluate_for_classification.index('rank')]
 
     # Calculate differences for each parameter
     speed_diff = max(speeds) - min(speeds)
@@ -126,18 +152,15 @@ def classify_balance(data):
 
 @app.route('/train_model', methods=['POST'])
 def train_model():
-    """
-    Train the machine learning model using all available parameters.
-    No parameters will be excluded; missing ones will be handled.
-    """
     global model
 
     # Preprocess the data
     training_data = preprocess_data()
 
+    print("TRAINING DATA E' QUESTO: ", training_data)
     # Verifica se ci sono dati sufficienti per l'addestramento
-    if len(training_data) == 0:
-        return jsonify({"error": "No training data available."}), 400
+    #if len(training_data) == 0 or training_data.shape[1] != len(all_parameters_sent_via_Json):
+    #    return jsonify({"error": "Insufficient or malformed training data."}), 400
 
     # Generate labels based on the classification of balance
     labels = np.array([classify_balance(training_data) for _ in range(len(training_data))])
@@ -150,6 +173,7 @@ def train_model():
     model.fit(X_train, y_train)
 
     return jsonify({"status": "model trained"}), 200
+
 
 @app.route('/prediction', methods=['GET'])
 def predict():

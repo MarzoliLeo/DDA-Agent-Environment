@@ -153,14 +153,14 @@ public class RaceEnvironment extends Environment {
 
                     // Gestione di valori estremamente alti per distanza
                     float distanceToFront = (float) playerInfo.getDouble("distance_to_front");
-                    if (distanceToFront > 1e30) {  // Soglia per considerare il valore come "infinito"
+                    /*if (distanceToFront > 1e30) {  // Soglia per considerare il valore come "infinito"
                         distanceToFront = Float.POSITIVE_INFINITY;  // Oppure un valore personalizzato come -1 per rappresentare "nessun giocatore davanti"
-                    }
+                    }*/
 
                     float distanceToBack = (float) playerInfo.getDouble("distance_to_back");
-                    if (distanceToBack > 1e30) {  // Soglia per considerare il valore come "infinito"
+                    /*if (distanceToBack > 1e30) {  // Soglia per considerare il valore come "infinito"
                         distanceToBack = Float.POSITIVE_INFINITY;  // Oppure un valore personalizzato come -1 per rappresentare "nessun giocatore dietro"
-                    }
+                    }*/
 
                     int rank = playerInfo.getInt("rank");
                     float distanceToFinish = (float) playerInfo.getDouble("distance_to_finish");
