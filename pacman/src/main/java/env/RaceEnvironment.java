@@ -72,7 +72,7 @@ public class RaceEnvironment extends Environment {
 
                 // Ora invia queste informazioni al modello di ML, eventualmente tramite un metodo
                 sendDataToMLModel(structuredData);
-                logger.info( "HO APPENA INVIATO I DATI AL MODELLO");
+                logger.info( "[DEBUG] HO APPENA INVIATO I DATI AL MODELLO");
                 return true;
             }
 
@@ -176,7 +176,7 @@ public class RaceEnvironment extends Environment {
                     addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'rank', " + rank + ")"));
                     addPercept(Literal.parseLiteral("player_data('" + playerId + "', 'distance_to_finish', " + distanceToFinish + ")"));
 
-                    logger.info("HO AGGIUNTO LE PERCEPTIONS!");
+                    //logger.info("[DEBUG] HO AGGIUNTO LE PERCEPTIONS!");
                 }
             }
         } catch (JSONException e) {
@@ -198,7 +198,7 @@ public class RaceEnvironment extends Environment {
         }
 
         //Debug log
-        logger.info("QUESTO E' CIò che sto inviado: "+ jsonArray);
+        //logger.info("[DEBUG] Quello che sto inviando: "+ jsonArray);
 
         // Invio dei dati tramite POST a Flask del modello.
         try {
@@ -279,7 +279,16 @@ public class RaceEnvironment extends Environment {
                 // Parsifica il JSON ricevuto
                 JSONObject jsonResponse = new JSONObject(content.toString());
                 logger.info("Prediction received: " + jsonResponse.toString());
-                // Qui potresti voler aggiornare i beliefs dell'agente con la predizione
+
+                /* TODO Aggiorna i belief con il risultato della predizione VALUTARE LA SUA ESISTENZA, secondo me non va qui ma è compito del DDA Unity.
+                int prediction = jsonResponse.getInt("prediction");
+                addPercept(Literal.parseLiteral("model_prediction(" + prediction + ")"));
+                logger.info("[DEBUG] Prediction added to beliefs: " + prediction); */
+
+                // Invia la predizione tramite POST alla route del server Flask
+                int prediction = jsonResponse.getInt("prediction");
+                sendPredictionToServer(prediction);
+
             } else {
                 logger.warning("GET prediction request failed.");
             }
@@ -288,4 +297,33 @@ public class RaceEnvironment extends Environment {
         }
     }
 
+    // Metodo per inviare la predizione tramite POST al server Flask
+    private void sendPredictionToServer(int prediction) {
+        try {
+            URL url = new URL("http://localhost:5000/api/agent/prediction");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true); // Abilita l'invio di dati nel corpo della richiesta
+
+            // Crea il JSON da inviare
+            JSONObject jsonPrediction = new JSONObject();
+            jsonPrediction.put("prediction", prediction);
+
+            // Imposta l'intestazione e scrivi il JSON nel corpo della richiesta
+            conn.setRequestProperty("Content-Type", "application/json");
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonPrediction.toString().getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                logger.info("Prediction sent successfully.");
+            } else {
+                logger.warning("POST prediction request failed with code: " + responseCode);
+            }
+        } catch (Exception e) {
+            logger.severe("Error sending prediction to server: " + e.getMessage());
+        }
+    }
 }

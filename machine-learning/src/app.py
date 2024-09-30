@@ -102,13 +102,13 @@ def classify_balance(data):
     """
     # Define thresholds for imbalance detection
     speed_diff_threshold = 10  # Speed difference threshold
-    distance_diff_threshold = 100  # Distance to finish threshold
-    checkpoint_diff_threshold = 2  # Max checkpoint difference
-    acceleration_diff_threshold = 10  # Max acceleration difference
+    distance_diff_threshold = 100  # Distance to finish threshold # 50
+    checkpoint_diff_threshold = 2  # Max checkpoint difference #5
+    acceleration_diff_threshold = 5  # Max acceleration difference
     position_diff_threshold = 200  # Max position distance (Euclidean)
-    rank_diff_threshold = 2  # Max difference in rank
+    rank_diff_threshold = 15  # Max difference in rank #15 è inutile temporaneamente ,prima era 2.
 
-    print("DATA IN CLASSIFY ", data)
+    #print("DATA IN CLASSIFY ", data)
 
     # Extract data for each parameter
     speeds = data[:, all_parameters_to_evaluate_for_classification.index('current_speed')]

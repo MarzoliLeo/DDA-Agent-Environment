@@ -3,8 +3,10 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Dizionario per contenere i dati di tutti i giocatori
-player_data = {}
+
+player_data = {} # Dizionario per contenere i dati di tutti i giocatori
+agent_prediction = None  # Variabile per memorizzare la predizione dell'agente
+
 
 # TODO Questa route era un Test e non rispetta i canoni RESTfull che le altre route invece hanno.
 @app.route('/api/agent/action', methods=['POST'])
@@ -59,6 +61,26 @@ def get_all_player_data():
     return jsonify({
         "all_player_data": player_data
     }), 200
+
+# Endpoint per caricare la predizione dell'agente (POST /api/agent/prediction)
+@app.route('/api/agent/prediction', methods=['POST'])
+def set_agent_prediction():
+    global agent_prediction
+    data = request.json
+    agent_prediction = data.get('prediction')
+
+    if agent_prediction is not None:
+        return jsonify({"message": "Prediction set successfully", "prediction": agent_prediction}), 200
+    else:
+        return jsonify({"error": "Prediction value not provided"}), 400
+
+# Endpoint per ottenere la predizione dell'agente (GET /api/agent/prediction)
+@app.route('/api/agent/prediction', methods=['GET'])
+def get_agent_prediction():
+    if agent_prediction is not None:
+        return jsonify({"prediction": agent_prediction}), 200
+    else:
+        return jsonify({"error": "No prediction available"}), 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
