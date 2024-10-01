@@ -159,8 +159,8 @@ def train_model():
 
     print("TRAINING DATA E' QUESTO: ", training_data)
     # Verifica se ci sono dati sufficienti per l'addestramento
-    #if len(training_data) == 0 or training_data.shape[1] != len(all_parameters_sent_via_Json):
-    #    return jsonify({"error": "Insufficient or malformed training data."}), 400
+    if len(training_data) == 0 or len(data_storage) == 0:
+       return jsonify({"error": "Insufficient or malformed training data."}), 400
 
     # Generate labels based on the classification of balance
     labels = np.array([classify_balance(training_data) for _ in range(len(training_data))])

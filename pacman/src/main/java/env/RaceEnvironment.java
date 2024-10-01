@@ -52,7 +52,7 @@ public class RaceEnvironment extends Environment {
                 List<String[]> structuredData = new ArrayList<>();
 
                 // Verifica che la lista di beliefs non sia vuota
-                if (beliefsList.size() == 0) {
+                if ( beliefsList == null || beliefsList.size() == 0) {
                     logger.warning("No beliefs to send to the ML model.");
                     return true;
                 }
@@ -231,6 +231,7 @@ public class RaceEnvironment extends Environment {
 
     // Metodo per inviare una richiesta POST e allenare il modello ML
     public void trainTheModel() {
+
         try {
             URL url = new URL("http://localhost:5001/train_model");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
