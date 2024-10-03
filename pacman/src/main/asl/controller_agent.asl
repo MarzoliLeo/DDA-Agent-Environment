@@ -3,7 +3,8 @@
 
 // Definisci il ciclo
 +!update_checkpoint_belief_cycle
-  <- .wait(1000);
+  <- .abolish(player_data(_, _, _));
+     .wait(1000);
      update_checkpoint_belief;
      .wait(1000);  // Tempo in ms.
      !send_player_data_to_ml_model;
