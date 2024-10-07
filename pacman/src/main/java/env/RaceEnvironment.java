@@ -138,8 +138,6 @@ public class RaceEnvironment extends Environment {
                     String playerId = keys.next();  // Ottieni il playerId corrente
                     JSONObject playerInfo = allPlayerData.getJSONObject(playerId);  // Ottieni le informazioni del giocatore
 
-                    //logger.info("Player Data appare nel seguente modo: " + playerInfo.toString());
-
                     // Estrai tutti i parametri del giocatore dal JSON
                     int checkpoints = playerInfo.getInt("checkpoints");
                     float currentSpeed = (float) playerInfo.getDouble("current_speed");
@@ -149,19 +147,8 @@ public class RaceEnvironment extends Environment {
                     float posX = (float) position.getDouble("x");
                     float posY = (float) position.getDouble("y");
                     float posZ = (float) position.getDouble("z");
-
-
-                    // Gestione di valori estremamente alti per distanza
                     float distanceToFront = (float) playerInfo.getDouble("distance_to_front");
-                    /*if (distanceToFront > 1e30) {  // Soglia per considerare il valore come "infinito"
-                        distanceToFront = Float.POSITIVE_INFINITY;  // Oppure un valore personalizzato come -1 per rappresentare "nessun giocatore davanti"
-                    }*/
-
                     float distanceToBack = (float) playerInfo.getDouble("distance_to_back");
-                    /*if (distanceToBack > 1e30) {  // Soglia per considerare il valore come "infinito"
-                        distanceToBack = Float.POSITIVE_INFINITY;  // Oppure un valore personalizzato come -1 per rappresentare "nessun giocatore dietro"
-                    }*/
-
                     int rank = playerInfo.getInt("rank");
                     float distanceToFinish = (float) playerInfo.getDouble("distance_to_finish");
 

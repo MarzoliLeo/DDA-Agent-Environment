@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
+NUMBER_OF_PARAMETERS_TO_EVALUATE = 4
+
 app = Flask(__name__)
 
 # Global variables to store incoming data and ML model state
@@ -13,13 +15,8 @@ data_storage = []  # List of all received data records
 model = None  # Placeholder for the ML model
 lock = threading.Lock()  # Lock to handle thread-safe operations
 
-all_parameters_to_evaluate_for_classification = ['player_id', 'current_speed', 'distance_to_finish', 'checkpoints',
-                                                 'acceleration', 'position_x', 'position_y', 'position_z', 'rank']
-all_parameters_sent_via_Json = [
-    'checkpoints', 'current_speed', 'top_speed',
-    'acceleration','position', 'distance_to_front',
-    'distance_to_back', 'rank', 'distance_to_finish'
-]
+all_parameters_sent_via_Json = \
+    ['checkpoints', 'current_speed', 'top_speed', 'acceleration','position', 'distance_to_front','distance_to_back', 'rank', 'distance_to_finish']
 
 
 @app.route('/send_data', methods=['POST'])
@@ -51,47 +48,44 @@ def preprocess_data():
     global data_storage
     processed_data = {}
 
+    # Cicla su tutti i record nello storage
     for record in data_storage:
         player_id = record['player_id']
         parameter = record['parameter']
         value = record['value']
 
-        # Se il player_id non è già nel dizionario, aggiungilo con valori None
+        # Se il player_id non è già nel dizionario, inizializza con un array di None
         if player_id not in processed_data:
-            processed_data[player_id] = [None] * len(all_parameters_sent_via_Json)
+            processed_data[player_id] = [None] * (len(all_parameters_sent_via_Json) + 3)  # Spazio per X, Y, Z
 
-        # Gestione della posizione come oggetto separato
+        # Gestione della posizione (come array separato di X, Y, Z)
         if parameter == 'position':
             try:
                 value_x = float(value[0])
                 value_y = float(value[1])
                 value_z = float(value[2])
 
-                # Aggiungi le coordinate x, y, z nei rispettivi indici
-                processed_data[player_id].extend([value_x, value_y, value_z])
-
+                # Aggiorna sempre i valori di X, Y, Z senza controllare se sono già presenti
+                processed_data[player_id][-3:] = [value_x, value_y, value_z]
             except (ValueError, IndexError):
-                # Gestione dell'errore se la posizione non è valida
-                print(f"Errore nella conversione della posizione per player_id: {player_id}.")
-                continue  # Salta alla prossima iterazione del loop
+                continue  # Salta record non validi
         else:
             try:
-                value = float(value)  # Converti altri valori in float
+                value = float(value)  # Converti il valore in float
             except ValueError:
-                continue  # Ignora se il valore non è numerico
+                continue  # Ignora valori non numerici
 
-            # Inserisci il valore del parametro nel posto giusto
+            # Inserisci il valore nel corretto indice
             if parameter in all_parameters_sent_via_Json:
                 index = all_parameters_sent_via_Json.index(parameter)
                 processed_data[player_id][index] = value
 
-    # Rimuovi eventuali None dall'array finale, tranne se appartengono a parametri significativi
+    # Rimuovi eventuali None dai dati finali
     for player, params in processed_data.items():
         processed_data[player] = [value for value in params if value is not None]
 
-    # Converti il dizionario in una lista di liste (ogni lista rappresenta un giocatore)
-    return np.array(list(processed_data.values()))  # Restituisce un array bidimensionale
-
+    # Ritorna i dati come array bidimensionale numpy
+    return np.array(list(processed_data.values()))
 
 
 
@@ -101,31 +95,39 @@ def classify_balance(data):
     This version uses a more complex strategy involving multiple parameters.
     """
     # Define thresholds for imbalance detection
-    speed_diff_threshold = 10  # Speed difference threshold
+    speed_diff_threshold = 6  # Speed difference threshold
     distance_diff_threshold = 100  # Distance to finish threshold # 50
     checkpoint_diff_threshold = 2  # Max checkpoint difference #5
     acceleration_diff_threshold = 5  # Max acceleration difference
     position_diff_threshold = 200  # Max position distance (Euclidean)
     rank_diff_threshold = 15  # Max difference in rank #15 è inutile temporaneamente ,prima era 2.
 
-    #print("DATA IN CLASSIFY ", data)
+    """
+    # TEST I VALORI GIUSTI SONO QUELLI SOPRA.
+    speed_diff_threshold = 3  # Abbassa temporaneamente la soglia
+    distance_diff_threshold = 50  # Abbassa temporaneamente la soglia
+    checkpoint_diff_threshold = 1  # Abbassa temporaneamente la soglia
+    acceleration_diff_threshold = 2  # Abbassa temporaneamente la soglia
+    position_diff_threshold = 100  # Abbassa temporaneamente la soglia
+    rank_diff_threshold = 1  # Abbassa temporaneamente la soglia """
+
 
     # Extract data for each parameter
-    speeds = data[:, all_parameters_to_evaluate_for_classification.index('current_speed')]
-    distances_to_finish = data[:, all_parameters_to_evaluate_for_classification.index('distance_to_finish')]
-    checkpoints = data[:, all_parameters_to_evaluate_for_classification.index('checkpoints')]
-    accelerations = data[:, all_parameters_to_evaluate_for_classification.index('acceleration')]
-    positions_x = data[:, all_parameters_to_evaluate_for_classification.index('position_x')]
-    positions_y = data[:, all_parameters_to_evaluate_for_classification.index('position_y')]
-    positions_z = data[:, all_parameters_to_evaluate_for_classification.index('position_z')]
-    ranks = data[:, all_parameters_to_evaluate_for_classification.index('rank')]
+    speeds = data[:, all_parameters_sent_via_Json.index('current_speed')]
+    distances_to_finish = data[:, all_parameters_sent_via_Json.index('distance_to_finish')]
+    checkpoints = data[:, all_parameters_sent_via_Json.index('checkpoints')]
+    # accelerations = data[:, all_parameters_sent_via_Json.index('acceleration')]
+    positions_x = data[:, -3] # pos X
+    positions_y = data[:, -2] # pos Y
+    positions_z = data[:, -1] # pos Z
+    # ranks = data[:, all_parameters_sent_via_Json.index('rank')]
 
     # Calculate differences for each parameter
     speed_diff = max(speeds) - min(speeds)
     distance_diff = max(distances_to_finish) - min(distances_to_finish)
     checkpoint_diff = max(checkpoints) - min(checkpoints)
-    acceleration_diff = max(accelerations) - min(accelerations)
-    rank_diff = max(ranks) - min(ranks)
+    # acceleration_diff = max(accelerations) - min(accelerations)
+    # rank_diff = max(ranks) - min(ranks)
 
     # Calculate Euclidean distances between players' positions
     position_diffs = []
@@ -138,17 +140,29 @@ def classify_balance(data):
 
     max_position_diff = max(position_diffs) if position_diffs else 0
 
-    # Check if any of the differences exceed the thresholds
-    if (speed_diff > speed_diff_threshold or
-            distance_diff > distance_diff_threshold or
-            checkpoint_diff > checkpoint_diff_threshold or
-            acceleration_diff > acceleration_diff_threshold or
-            max_position_diff > position_diff_threshold or
-            rank_diff > rank_diff_threshold):
+    # Initialize a counter for the votes
+    votes = 0
+
+    # Check each difference separately and vote
+    if speed_diff > speed_diff_threshold:
+        votes += 1
+    if distance_diff > distance_diff_threshold:
+        votes += 1
+    if checkpoint_diff > checkpoint_diff_threshold:
+        votes += 1
+    #if acceleration_diff > acceleration_diff_threshold:
+     #   votes += 1
+    if max_position_diff > position_diff_threshold:
+        votes += 1
+    #if rank_diff < rank_diff_threshold:
+    #    votes += 1
+
+    # Determine the result based on the majority of votes
+    # The number of parameters evaluated is currently 6
+    if votes > NUMBER_OF_PARAMETERS_TO_EVALUATE / 2:
         return 1  # Unbalanced
     else:
         return 0  # Balanced
-
 
 @app.route('/train_model', methods=['POST'])
 def train_model():
@@ -164,15 +178,18 @@ def train_model():
 
     # Generate labels based on the classification of balance
     labels = np.array([classify_balance(training_data) for _ in range(len(training_data))])
-
+    print("QUESTI SONO I LABELS: ", labels)
     # Split data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(training_data[:, 1:], labels, test_size=0.2)
+    X_train, X_test, y_train, y_test = train_test_split(training_data, labels, test_size=0.2)
 
     # Train the model (using Random Forest as an example)
     model = RandomForestClassifier()
     model.fit(X_train, y_train)
 
-    return jsonify({"status": "model trained"}), 200
+    # Calcola l'accuratezza del modello sui dati di test
+    accuracy = model.score(X_test, y_test)
+
+    return jsonify({"status": "model trained", "accuracy" : accuracy }), 200
 
 
 @app.route('/prediction', methods=['GET'])
@@ -192,7 +209,7 @@ def predict():
             return jsonify({"error": "No data available for prediction."}), 400
 
         # Use the last player's data for prediction
-        player_data = preprocess_data()[-1, 1:]
+        player_data = preprocess_data()[-1, :]
 
     # Perform prediction
     prediction = model.predict([player_data])
