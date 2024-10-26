@@ -95,8 +95,8 @@ def classify_balance(data):
     This version uses a more complex strategy involving multiple parameters.
     """
     # Define thresholds for imbalance detection
-    speed_diff_threshold = 6  # Speed difference threshold
-    distance_diff_threshold = 100  # Distance to finish threshold # 50
+    top_speed_diff_threshold = 6  # Speed difference threshold
+    distance_diff_threshold = 10  # Distance to finish threshold # 50
     checkpoint_diff_threshold = 2  # Max checkpoint difference #5
     acceleration_diff_threshold = 5  # Max acceleration difference
     position_diff_threshold = 200  # Max position distance (Euclidean)
@@ -113,7 +113,7 @@ def classify_balance(data):
 
 
     # Extract data for each parameter
-    speeds = data[:, all_parameters_sent_via_Json.index('current_speed')]
+    speeds = data[:, all_parameters_sent_via_Json.index('top_speed')]
     distances_to_finish = data[:, all_parameters_sent_via_Json.index('distance_to_finish')]
     checkpoints = data[:, all_parameters_sent_via_Json.index('checkpoints')]
     # accelerations = data[:, all_parameters_sent_via_Json.index('acceleration')]
@@ -144,7 +144,7 @@ def classify_balance(data):
     votes = 0
 
     # Check each difference separately and vote
-    if speed_diff > speed_diff_threshold:
+    if speed_diff > top_speed_diff_threshold:
         votes += 1
     if distance_diff > distance_diff_threshold:
         votes += 1
